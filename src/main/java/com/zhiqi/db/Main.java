@@ -8,7 +8,6 @@ import java.util.StringJoiner;
 
 public class Main {
     public static void main(String[] args) {
-        // Update these values accordingly.
         String url = "jdbc:mysql://localhost:3306/dblab1";
         String user = "root";
         String password = "79Haolubenwei";
