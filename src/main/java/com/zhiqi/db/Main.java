@@ -53,7 +53,7 @@ public class Main {
                     colNames.add(col);
                     placeholders.add("?");
                 }
-                String insertSql = "INSERT INTO " + tableName + " (" + colNames + ") VALUES " + placeholders;
+                String insertSql = "INSERT INTO " + tableName + " (" + colNames + ") VALUES " + placeholders;//此处手工编写sql
 
                 try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
                     String dataLine;
