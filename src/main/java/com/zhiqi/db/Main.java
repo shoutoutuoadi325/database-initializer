@@ -1,9 +1,10 @@
 package com.zhiqi.db;
 
 import java.io.BufferedReader;
-import java.io.InputStream;
+import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.sql.*;
+import java.util.Scanner;
 import java.util.StringJoiner;
 
 public class Main {
@@ -15,46 +16,49 @@ public class Main {
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
             System.out.println("Connected to database.");
 
-            // 1. Load and execute table creation SQL from table_structure.sql
-            try (InputStream sqlStream = Main.class.getClassLoader().getResourceAsStream("table_structure.sql")) {
-                if (sqlStream == null) {
-                    throw new RuntimeException("table_structure.sql not found in resources.");
-                }
-                BufferedReader sqlReader = new BufferedReader(new InputStreamReader(sqlStream));
-                StringJoiner sqlBuilder = new StringJoiner(" ");
-                String line;
-                while ((line = sqlReader.readLine()) != null) {
-                    sqlBuilder.add(line);
-                }
-                String ddl = sqlBuilder.toString();
-                try (Statement stmt = conn.createStatement()) {
-                    stmt.execute(ddl);
-                    System.out.println("Table created successfully.");
-                }
-            }
+            // Prompt user to enter CSV file path
+            Scanner scanner = new Scanner(System.in);
+            System.out.print("Enter CSV file path: ");
+            String csvPath = scanner.nextLine();
 
-            // 2. Read CSV file and insert data
-            try (InputStream csvStream = Main.class.getClassLoader().getResourceAsStream("data.csv")) {
-                if (csvStream == null) {
-                    throw new RuntimeException("data.csv not found in resources.");
-                }
-                BufferedReader csvReader = new BufferedReader(new InputStreamReader(csvStream));
+            // Open CSV file from user-specified path
+            try (FileInputStream csvStream = new FileInputStream(csvPath);
+                    BufferedReader csvReader = new BufferedReader(new InputStreamReader(csvStream))) {
+
+                // Read header line, which will be used for both table structure and INSERT
+                // statement
                 String headerLine = csvReader.readLine();
                 if (headerLine == null) {
                     throw new RuntimeException("CSV file is empty.");
                 }
                 String[] columns = headerLine.split(",");
-                String tableName = "test_table"; // Change as required
+                // Remove surrounding quotes from column names if present
+                for (int i = 0; i < columns.length; i++) {
+                    columns[i] = columns[i].trim().replaceAll("^\"|\"$", "");
+                }
 
-                // Build INSERT SQL with placeholders
+                // 1. Generate and execute table creation SQL from CSV header automatically
+                StringJoiner ddlJoiner = new StringJoiner(", ");
+                for (String col : columns) {
+                    ddlJoiner.add(col + " VARCHAR(255)");
+                }
+                String ddl = "CREATE TABLE IF NOT EXISTS test_table (" + ddlJoiner.toString() + ");";
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute(ddl);
+                    System.out.println("Table created successfully with structure from CSV header.");
+                }
+
+                // 2. Build INSERT SQL with placeholders
                 StringJoiner placeholders = new StringJoiner(", ", "(", ")");
                 StringJoiner colNames = new StringJoiner(", ");
                 for (String col : columns) {
                     colNames.add(col);
                     placeholders.add("?");
                 }
-                String insertSql = "INSERT INTO " + tableName + " (" + colNames + ") VALUES " + placeholders;//此处手工编写sql
+                String insertSql = "INSERT INTO test_table (" + colNames.toString() + ") VALUES "
+                        + placeholders.toString();
 
+                // Insert CSV data rows
                 try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
                     String dataLine;
                     while ((dataLine = csvReader.readLine()) != null) {
@@ -62,7 +66,6 @@ public class Main {
                             continue;
                         String[] values = dataLine.split(",");
                         for (int i = 0; i < values.length; i++) {
-                            // Trim and set all values as strings. Adjust conversion if needed.
                             pstmt.setString(i + 1, values[i].trim());
                         }
                         pstmt.executeUpdate();
@@ -70,6 +73,7 @@ public class Main {
                     System.out.println("Data inserted successfully.");
                 }
             }
+            scanner.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
