@@ -1,6 +1,7 @@
 package com.zhiqi.db;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.sql.*;
@@ -20,6 +21,11 @@ public class Main {
             Scanner scanner = new Scanner(System.in);
             System.out.print("Enter CSV file path: ");
             String csvPath = scanner.nextLine();
+
+            // Extract table name from CSV file name (without extension)
+            File csvFile = new File(csvPath);
+            String fileName = csvFile.getName();
+            String tableName = fileName.contains(".") ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
 
             // Open CSV file from user-specified path
             try (FileInputStream csvStream = new FileInputStream(csvPath);
@@ -42,10 +48,11 @@ public class Main {
                 for (String col : columns) {
                     ddlJoiner.add(col + " VARCHAR(255)");
                 }
-                String ddl = "CREATE TABLE IF NOT EXISTS test_table (" + ddlJoiner.toString() + ");";
+                String ddl = "CREATE TABLE IF NOT EXISTS " + tableName + " (" + ddlJoiner.toString() + ");";
                 try (Statement stmt = conn.createStatement()) {
                     stmt.execute(ddl);
-                    System.out.println("Table created successfully with structure from CSV header.");
+                    System.out
+                            .println("Table '" + tableName + "' created successfully with structure from CSV header.");
                 }
 
                 // 2. Build INSERT SQL with placeholders
@@ -55,7 +62,7 @@ public class Main {
                     colNames.add(col);
                     placeholders.add("?");
                 }
-                String insertSql = "INSERT INTO test_table (" + colNames.toString() + ") VALUES "
+                String insertSql = "INSERT INTO " + tableName + " (" + colNames.toString() + ") VALUES "
                         + placeholders.toString();
 
                 // Insert CSV data rows
