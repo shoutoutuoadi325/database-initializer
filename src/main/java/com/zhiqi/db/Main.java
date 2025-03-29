@@ -68,22 +68,44 @@ public class Main {
                 // Insert CSV data rows
                 try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
                     String dataLine;
+                    int lineNumber = 1; // Start counting after header
+                    int emptyValueCount = 0;
+
                     while ((dataLine = csvReader.readLine()) != null) {
+                        lineNumber++;
                         if (dataLine.trim().isEmpty())
                             continue;
-                        String[] values = dataLine.split(",");
-                        for (int i = 0; i < values.length; i++) {
-                            pstmt.setString(i + 1, values[i].trim());
+
+                        // Split the line, preserving empty trailing fields
+                        String[] values = dataLine.split(",", -1);
+
+                        // Ensure we have the correct number of values
+                        if (values.length < columns.length) {
+                            System.out.println("Warning: Line " + lineNumber
+                                    + " has fewer columns than expected. Adding NULL values.");
+                        }
+
+                        // Set each parameter, using NULL for empty values
+                        for (int i = 0; i < columns.length; i++) {
+                            String value = (i < values.length) ? values[i].trim() : "";
+                            if (value.isEmpty()) {
+                                pstmt.setNull(i + 1, Types.VARCHAR);
+                                System.out.println("Line " + lineNumber + ": Column '" + columns[i]
+                                        + "' is empty, inserting NULL");
+                                emptyValueCount++;
+                            } else {
+                                pstmt.setString(i + 1, value);
+                            }
                         }
                         pstmt.executeUpdate();
                     }
                     System.out.println("Data inserted successfully.");
+                    System.out.println("Total empty values converted to NULL: " + emptyValueCount);
                 }
             }
             scanner.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 }
