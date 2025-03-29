@@ -7,6 +7,10 @@ import java.io.InputStreamReader;
 import java.sql.*;
 import java.util.Scanner;
 import java.util.StringJoiner;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
@@ -71,6 +75,10 @@ public class Main {
                     int lineNumber = 1; // Start counting after header
                     int emptyValueCount = 0;
 
+                    // Track existing tuples to avoid duplicates
+                    Set<String> existingTuples = new HashSet<>();
+                    List<Integer> duplicateLineNumbers = new ArrayList<>();
+
                     while ((dataLine = csvReader.readLine()) != null) {
                         lineNumber++;
                         if (dataLine.trim().isEmpty())
@@ -83,6 +91,16 @@ public class Main {
                         if (values.length < columns.length) {
                             System.out.println("Warning: Line " + lineNumber
                                     + " has fewer columns than expected. Adding NULL values.");
+                        }
+
+                        // Build a string representation of the tuple
+                        String tupleString = String.join(",", values);
+
+                        // Check if the tuple already exists
+                        if (existingTuples.contains(tupleString)) {
+                            System.out.println("Duplicate found at line: " + lineNumber + ". Skipping insertion.");
+                            duplicateLineNumbers.add(lineNumber);
+                            continue; // Skip to the next line
                         }
 
                         // Set each parameter, using NULL for empty values
@@ -98,9 +116,15 @@ public class Main {
                             }
                         }
                         pstmt.executeUpdate();
+                        existingTuples.add(tupleString); // Add tuple to the set
                     }
                     System.out.println("Data inserted successfully.");
                     System.out.println("Total empty values converted to NULL: " + emptyValueCount);
+
+                    if (!duplicateLineNumbers.isEmpty()) {
+                        System.out
+                                .println("The following lines were skipped due to duplicates: " + duplicateLineNumbers);
+                    }
                 }
             }
             scanner.close();
